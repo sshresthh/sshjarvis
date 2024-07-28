@@ -82,10 +82,6 @@ The bot can be customized through several variables:
 - Develop a web interface for easy configuration and monitoring.
 - Implement multi-user support with individual preferences.
 
-## Conclusion
-
-##### sshJarvis demonstrates the power of automation in solving real-world scheduling challenges. By leveraging asyncio for efficient chat monitoring and employing clever parsing techniques, this bot significantly reduces the manual effort required in the shift-picking process.
-
 ## Installation
 
 1. Clone the repository:
@@ -135,3 +131,111 @@ The bot can be customized through several variables:
    ```
    python3 sshjarvis.py
    ```
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+# Running SSHJarvis 24/7 on Google Cloud Platform
+
+This guide explains how to run your SSHJarvis bot continuously on a Google Cloud Platform (GCP) VM instance using `tmux`.
+
+## Initial Setup
+
+### 1. Set up your GCP VM Instance
+- Create a new VM instance in GCP if you haven't already.
+- Ensure Python 3.x is installed on your instance.
+
+### 2. Install Required Packages
+SSH into your VM instance and run:
+
+```bash
+sudo apt update
+sudo apt install tmux python3-pip
+pip3 install python-dotenv telethon fuzzywuzzy python-Levenshtein
+```
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+## Running SSHJarvis Using `tmux`
+
+### 1. Create a New `tmux` Session
+```bash
+tmux new -s sshjarvis
+```
+
+### 2. Run Your Bot
+Inside the `tmux` session:
+```bash
+python3 sshjarvis.py
+```
+
+### 3. Detach from the `tmux` Session
+Press `Ctrl + B`, then `D`. Your bot will continue running in the background.
+
+### 4. Exit SSH (Optional)
+You can now safely exit your SSH session. The bot will keep running.
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+## Managing Your Bot
+
+### Checking Bot Status
+1. SSH into your VM instance
+2. List `tmux` sessions:
+   ```bash
+   tmux ls
+   ```
+3. Reattach to your session:
+   ```bash
+   tmux attach -t sshjarvis
+   ```
+
+### Stopping the Bot
+1. Reattach to the `tmux` session
+2. Stop the Python script (Ctrl + C)
+3. Exit the `tmux` session:
+   ```bash
+   exit
+   ```
+
+### Killing the `tmux` Session
+If needed, you can forcefully terminate the session:
+```bash
+tmux kill-session -t sshjarvis
+```
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+## Best Practices
+
+1. **Logging**: Implement comprehensive logging in your bot script to track its activities and any errors.
+
+2. **Monitoring**: Set up monitoring alerts in GCP to notify you of high CPU usage or other issues.
+
+3. **Updates**: Regularly update your bot script and dependencies. When updating:
+   - Reattach to the `tmux` session
+   - Stop the current bot instance
+   - Pull the latest code (if using version control)
+   - Restart the bot
+
+4. **Security**: 
+   - Keep your `.env.rosana` file secure and never commit it to version control.
+   - Regularly update your VM instance and all installed packages.
+
+5. **Backup**: Regularly backup your bot script and any important data.
+
+## Troubleshooting
+
+- If the bot crashes, reattach to the `tmux` session and check the output for error messages.
+- Ensure your GCP firewall settings allow necessary outbound connections for the bot to function.
+- If `tmux` sessions persist after reboots, causing issues, you can clear all sessions with:
+  ```bash
+  tmux kill-server
+  ```
+
+Remember to monitor your GCP usage to stay within free tier limits or your budget if using paid services.
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+## Conclusion
+
+##### sshJarvis demonstrates the power of automation in solving real-world scheduling challenges. By leveraging asyncio for efficient chat monitoring and employing clever parsing techniques, this bot significantly reduces the manual effort required in the shift-picking process.
