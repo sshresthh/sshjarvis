@@ -23,7 +23,7 @@ api_hash = os.getenv('TELEGRAM_API_HASH')
 
 # Configurable settings
 inclusion_keywords = ["SHIFT AVAILABLE", "MULTIPLE SHIFTS AVAILABLE", "URGENT SHIFT AVAILABLE"]
-inclusion_locations = ["Calvary Oakland", "Calvary Brighton", "Calvary Kingswood", "Helping Hand North Adelaide", "Helping Hand", "HH"]
+inclusion_locations = ["Calvary Oakland", "Calvary Brighton", "Calvary Kingswood"]
 exclusion_locations = ["SNOWTOWN", "ELIZABETH"]
 relevant_roles = ["PCW", "PCA"]
 
@@ -117,11 +117,11 @@ def format_date(date_str):
 def format_response(venue, date, time, is_urgent):
     formatted_date = format_date(date)
     if is_urgent and time.startswith("ASAP"):
-        return f"I can in 20 minutes {venue}/{formatted_date}/{time}"
+        return f"i can in 30 minutes\n{venue}\n{time}\n{formatted_date}"
     else:
         start_time, end_time = time.split('-')
         formatted_time = f"{start_time[:2]}{start_time[2:] or ''}-{end_time[:2]}{end_time[2:] or ''}"
-        return f"I can {venue}/{formatted_date}/{formatted_time}"
+        return f"i can\n{venue}\n{formatted_time}\n{formatted_date}"
 
 def calculate_shift_duration(shift):
     start, end = shift.split('-')
@@ -158,15 +158,15 @@ async def main():
             logger.info(f"Message from {sender_name} in {chat_name}: {message}")
 
             if chat_name == "state":
-                if message.strip().lower() == "namaste":
+                if message.strip().lower() == "goodday mate":
                     bot_active = True
                     logger.info("Bot activated.")
-                    await client.send_message(event.chat_id, '\n--------------------\nTURNED ON.\nShift Pick Gardinchu Hai!\n--------------------')
+                    await client.send_message(event.chat_id, '\n--------------------\nGoodday.\nTurned On\n--------------------')
                     print("\n-------------------------\n")                
-                elif message.strip().lower() == "bye":
+                elif message.strip().lower() == "goodnight mate":
                     bot_active = False
                     logger.info("Bot deactivated.")
-                    await client.send_message(event.chat_id, '\n--------------------\nTURNED OFF!\nMa Sutna Gaye!\n--------------------')
+                    await client.send_message(event.chat_id, '\n--------------------\nGoodnight\nTurned Off\n--------------------')
                     print("\n-------------------------\n")                 
                 return
 
