@@ -107,7 +107,7 @@ def parse_shift_message(message):
                 end_time = asap_match.group(1)
                 shifts.append(f"ASAP-{end_time}")
             else:
-                shifts.append("ASAP-2359")  # Default end time if not specified
+                shifts.append("ASAP-anytime")  # Default end time if not specified
             is_urgent = True
     
     logger.info(f"Parsed message - Date: {date}, Venue: {venue}, Shifts: {shifts}, Urgent: {is_urgent}")
@@ -133,11 +133,11 @@ def format_date(date_str):
 def format_response(venue, date, time, is_urgent):
     formatted_date = format_date(date)
     if is_urgent and time.startswith("ASAP"):
-        return f"I can in 20 minutes {venue}/{formatted_date}/{time}"
+        return f"i can 30min {time}\nin {venue} {formatted_date}"
     else:
         start_time, end_time = time.split('-')
         formatted_time = f"{start_time[:2]}{start_time[2:] or ''}-{end_time[:2]}{end_time[2:] or ''}"
-        return f"I can {venue}/{formatted_date}/{formatted_time}"
+        return f"i can {formatted_time}\nin {venue} {formatted_date}"
 
 def calculate_shift_duration(shift):
     start, end = shift.split('-')
