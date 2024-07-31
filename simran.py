@@ -3,11 +3,27 @@ import logging
 from datetime import datetime, timedelta
 import re
 from zoneinfo import ZoneInfo
-from fuzzywuzzy import fuzz
-from telethon import TelegramClient, events, utils
 import os
-from dotenv import load_dotenv
 import random
+
+# Try to import optional libraries
+try:
+    from fuzzywuzzy import fuzz
+except ImportError:
+    print("fuzzywuzzy library not found. Please install it using 'pip install fuzzywuzzy python-Levenshtein'")
+    fuzz = None
+
+try:
+    from telethon import TelegramClient, events, utils
+except ImportError:
+    print("telethon library not found. Please install it using 'pip install telethon'")
+    TelegramClient = events = utils = None
+
+try:
+    from dotenv import load_dotenv
+except ImportError:
+    print("python-dotenv library not found. Please install it using 'pip install python-dotenv'")
+    load_dotenv = lambda x: None
 
 # Load environment variables
 load_dotenv('.env.local')
@@ -16,7 +32,7 @@ load_dotenv('.env.local')
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-print("\nStarting cpp occurance...")
+print("\nStarting SSHJarvis...")
 
 # Get API credentials from environment variables
 api_id = os.getenv('TELEGRAM_API_ID')
@@ -31,13 +47,8 @@ relevant_roles = ["PCW", "PCA"]
 chat_names = ["WorkforceXS Carers (PCA, PCW,CWK) chat", "test", "state"]
 chat_ids = {}
 bot_active = False  # Initial state of the bot
-
-RESPONSE_DELAY_MIN = 2  # Minimum delay in seconds
-RESPONSE_DELAY_MAX = 3  # Maximum delay in seconds
+RESPONSE_DELAY = 0  # Default delay
 ADELAIDE_TZ = ZoneInfo("Australia/Adelaide")
-
-# New setting for typos
-TYPO_CHANCE = 0.2  # 10% chance to make a typo
 
 async def get_chat_ids(client):
     global chat_ids
@@ -142,38 +153,19 @@ def calculate_shift_duration(shift):
 def get_longest_shift(shifts):
     return max(shifts, key=calculate_shift_duration)
 
-def introduce_typo(text):
-    if random.random() < TYPO_CHANCE:
-        words = text.split()
-        if words:
-            word_to_typo = random.choice(words)
-            typo_word = word_to_typo[:-1] + random.choice('abcdefghijklmnopqrstuvwxyz')
-            words[words.index(word_to_typo)] = typo_word
-            return " ".join(words)
-    return text
-
-async def send_message_with_typo(client, chat_id, message):
-    typo_message = introduce_typo(message)
-    if typo_message != message:
-        await client.send_message(chat_id, typo_message)
-        await asyncio.sleep(random.uniform(1, 3))  # Wait 1-3 seconds
-        await client.send_message(chat_id, f"*{message}")  # Send correction
-    else:
-        await client.send_message(chat_id, message)
-
 async def main():
     if not api_id or not api_hash:
         logger.error("API credentials not found. Please check your .env.local file.")
         return
 
-    client = TelegramClient('cpp occurance_session', api_id, api_hash)
+    client = TelegramClient('sshjarvis_session', api_id, api_hash)
 
     async with client:
         await get_chat_ids(client)
 
         @client.on(events.NewMessage(chats=list(chat_ids.values())))
         async def my_event_handler(event):
-            global bot_active
+            global bot_active, RESPONSE_DELAY
             message = event.raw_text
             sender = await event.get_sender()
             sender_name = utils.get_display_name(sender)
@@ -182,16 +174,24 @@ async def main():
             logger.info(f"Message from {sender_name} in {chat_name}: {message}")
 
             if chat_name == "state":
-                if message.strip().lower() == "namaste":
-                    bot_active = True
-                    logger.info("Bot activated.")
-                    await client.send_message(event.chat_id, '\n--------------------\nTURNED ON.\nShift Pick Gardinchu Hai!\n--------------------')
-                    print("\n-------------------------\n")                
-                elif message.strip().lower() == "bye":
+                command_parts = message.strip().lower().split()
+                if command_parts[0] == "goodday":
+                    if len(command_parts) == 2 and command_parts[1].isdigit():
+                        delay = int(command_parts[1])
+                        if 0 <= delay <= 4:
+                            RESPONSE_DELAY = delay
+                            bot_active = True
+                            logger.info(f"Bot activated with delay {RESPONSE_DELAY}")
+                            await client.send_message(event.chat_id, f'\n--------Simran---------\nTURNED ON.\nGoodday Mate!\nDelay set to {RESPONSE_DELAY} seconds.\n--------------------')
+                        else:
+                            await client.send_message(event.chat_id, "Invalid delay. Please use a number between 0 and 4.")
+                    else:
+                        await client.send_message(event.chat_id, "Please specify a delay between 0 and 4 seconds. Example: 'namaste 2'")
+                elif message.strip().lower() == "goodnight":
                     bot_active = False
                     logger.info("Bot deactivated.")
-                    await client.send_message(event.chat_id, '\n--------------------\nTURNED OFF!\nMa Sutna Gaye!\n--------------------')
-                    print("\n-------------------------\n")                 
+                    await client.send_message(event.chat_id, '\n-------Simran-------\nTURNED OFF!\nGoodnight Mate!\n--------------------')
+                print("\n-------------------------\n")
                 return
 
             if bot_active and any(keyword in message.upper() for keyword in inclusion_keywords):
@@ -202,10 +202,9 @@ async def main():
                         longest_shift = get_longest_shift(shifts)
                         response = format_response(venue, date, longest_shift, is_urgent)
                         logger.info(f"Preparing to send response: {response}")
-                        delay = random.uniform(RESPONSE_DELAY_MIN, RESPONSE_DELAY_MAX)
-                        await asyncio.sleep(delay)
-                        await send_message_with_typo(client, event.chat_id, response)
-                        logger.info("Response sent after delay.")
+                        await asyncio.sleep(RESPONSE_DELAY)
+                        await client.send_message(event.chat_id, response)
+                        logger.info(f"Response sent after {RESPONSE_DELAY} seconds delay.")
                     else:
                         logger.info("Invalid shift information or excluded location, not responding.")
                 except Exception as e:
@@ -216,6 +215,9 @@ async def main():
         await client.run_until_disconnected()
 
 if __name__ == "__main__":
-    print("cpp occurance is now running!")
-    asyncio.run(main())
-    print("cpp occurance has stopped.")
+    if None in (fuzz, TelegramClient, load_dotenv):
+        print("Error: Some required libraries are missing. Please install them and try again.")
+    else:
+        print("SSHJarvis is now running!")
+        asyncio.run(main())
+        print("SSHJarvis has stopped.")
