@@ -40,13 +40,18 @@ api_hash = os.getenv('TELEGRAM_API_HASH')
 
 # Configurable settings
 inclusion_keywords = ["SHIFT AVAILABLE", "MULTIPLE SHIFTS AVAILABLE", "URGENT SHIFT AVAILABLE"]
-inclusion_locations = ["Calvary Oakland", "Calvary Brighton", "Calvary Kingswood", "Helping Hand North Adelaide", "Helping Hand", "HH", "Amber Age Care"]
+inclusion_locations = ["Calvary Oakland", "Calvary Brighton", 
+                       "Calvary Kingswood", "Helping Hand North Adelaide", 
+                       "HH North Adelaide", "Helping Hand Golden Grove",
+                       "HH Golden Grove", "Amber Age Care"]
 exclusion_locations = ["SNOWTOWN"]
 relevant_roles = ["PCW", "PCA"]
 facility_wards = {
     "Calvary Oakland": ["Glen", "Oak"],
     "Helping Hand North Adelaide": ["Garden Court", "Gill", "First Floor"],
     "HH North Adelaide": ["Garden Court", "Gill", "First Floor"],
+    "Helping Hand Golden Grove" : ["Ground Floor"],
+    "HH Golden Grove" : ["Ground Floor"],
     "Amber Age Care": ["Paradise"]
 }
 
