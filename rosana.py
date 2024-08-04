@@ -8,10 +8,10 @@ import random
 
 # Try to import optional libraries
 try:
-    from fuzzywuzzy import fuzz
+    from fuzzywuzzy import fuzz, process
 except ImportError:
     print("fuzzywuzzy library not found. Please install it using 'pip install fuzzywuzzy python-Levenshtein'")
-    fuzz = None
+    fuzz = process = None
 
 try:
     from telethon import TelegramClient, events, utils
@@ -40,9 +40,15 @@ api_hash = os.getenv('TELEGRAM_API_HASH')
 
 # Configurable settings
 inclusion_keywords = ["SHIFT AVAILABLE", "MULTIPLE SHIFTS AVAILABLE", "URGENT SHIFT AVAILABLE"]
-inclusion_locations = ["Calvary Oakland", "Calvary Brighton", "Calvary Kingswood", "Helping Hand North Adelaide", "Helping Hand", "HH"]
-exclusion_locations = ["SNOWTOWN", "ELIZABETH"]
+inclusion_locations = ["Calvary Oakland", "Calvary Brighton", "Calvary Kingswood", "Helping Hand North Adelaide", "Helping Hand", "HH", "Amber Age Care"]
+exclusion_locations = ["SNOWTOWN"]
 relevant_roles = ["PCW", "PCA"]
+facility_wards = {
+    "Calvary Oakland": ["Glen", "Oak"],
+    "Helping Hand North Adelaide": ["Garden Court", "Gill", "First Floor"],
+    "HH North Adelaide": ["Garden Court", "Gill", "First Floor"],
+    "Amber Age Care": ["Paradise"]
+}
 
 chat_names = ["WorkforceXS Carers (PCA, PCW,CWK) chat", "test", "state"]
 chat_ids = {}
@@ -58,19 +64,16 @@ async def get_chat_ids(client):
     logger.info(f"Chat IDs: {chat_ids}")
 
 def fuzzy_match(target, choices, threshold=80):
-    best_match = None
-    best_ratio = 0
-    for choice in choices:
-        ratio = fuzz.ratio(target.lower(), choice.lower())
-        if ratio > best_ratio and ratio >= threshold:
-            best_ratio = ratio
-            best_match = choice
-    return best_match
+    best_match, score = process.extractOne(target, choices)
+    if score >= threshold:
+        return best_match
+    return None
 
 def parse_shift_message(message):
     lines = message.split('\n')
     date = None
-    venue = None
+    current_venue = None
+    current_ward = None
     shifts = []
     is_urgent = False
     
@@ -78,69 +81,96 @@ def parse_shift_message(message):
         if any(keyword in line.upper() for keyword in inclusion_keywords):
             if "URGENT" in line.upper():
                 is_urgent = True
+            continue
+        
+        if not date:
             if "TODAY" in line.upper():
                 date = "TODAY"
+                continue
             elif "TOMORROW" in line.upper():
                 date = "TOMORROW"
-            continue
-        
-        if not date and re.match(r'\w{3}\s+\d{1,2}/\d{1,2}', line):
-            date = line.strip()
-            continue
-        
-        if not venue:
-            possible_venue = fuzzy_match(line, inclusion_locations)
-            if possible_venue:
-                venue = possible_venue
+                continue
+            date_match = re.match(r'(?:MON|TUE|WED|THU|FRI|SAT|SUN)\s+(\d{1,2}/\d{1,2})', line)
+            if date_match:
+                date = date_match.group(1)
                 continue
         
-        shift_match = re.match(r'(?:(\w+)\s+)?(\d{4})-(\d{4})(?:\s*x\s*(\d+))?', line)
+        possible_venue = fuzzy_match(line, inclusion_locations, threshold=70)
+        if possible_venue:
+            current_venue = possible_venue
+            # Check for ward information in the same line
+            ward_match = re.search(r'(?:in|IN)\s+(.+)$', line)
+            if ward_match:
+                current_ward = ward_match.group(1).strip().title()
+            else:
+                current_ward = None
+            continue
+        
+        shift_match = re.match(r'(?:(\w+)\s+)?(\d{4})-(\d{4})(?:\s+IN\s+(.+?))?(?:\s*x\s*(\d+))?$', line)
         if shift_match:
-            role, start_time, end_time, multiplier = shift_match.groups()
+            role, start_time, end_time, ward, multiplier = shift_match.groups()
             if not role or role.upper() in (r.upper() for r in relevant_roles):
                 shift_time = f"{start_time}-{end_time}"
+                ward = ward.strip().title() if ward else current_ward
                 multiplier = int(multiplier) if multiplier else 1
-                shifts.extend([shift_time] * multiplier)
+                shifts.extend([(shift_time, ward, current_venue)] * multiplier)
         elif "ASAP" in line.upper():
-            asap_match = re.search(r'ASAP-(\d{4})', line.upper())
+            asap_match = re.search(r'ASAP-(\d{4})(?:\s+IN\s+(.+))?$', line.upper())
             if asap_match:
-                end_time = asap_match.group(1)
-                shifts.append(f"ASAP-{end_time}")
+                end_time, ward = asap_match.groups()
+                shift_time = f"ASAP-{end_time}"
+                ward = ward.strip().title() if ward else current_ward
+                shifts.append((shift_time, ward, current_venue))
             else:
-                shifts.append("ASAP-2359")  # Default end time if not specified
+                shifts.append(("ASAP-2359", current_ward, current_venue))  # Default end time if not specified
             is_urgent = True
     
-    logger.info(f"Parsed message - Date: {date}, Venue: {venue}, Shifts: {shifts}, Urgent: {is_urgent}")
-    return date, venue, shifts, is_urgent
+    logger.info(f"Parsed message - Date: {date}, Shifts: {shifts}, Urgent: {is_urgent}")
+    return date, shifts, is_urgent
 
 def format_date(date_str):
-    if not date_str:
-        return datetime.now(ADELAIDE_TZ).strftime("%d %B")
-    if date_str == "TODAY":
-        return datetime.now(ADELAIDE_TZ).strftime("%d %B")
+    today = datetime.now(ADELAIDE_TZ)
+    if not date_str or date_str == "TODAY":
+        return today.strftime("%d %B")
     if date_str == "TOMORROW":
-        tomorrow = datetime.now(ADELAIDE_TZ) + timedelta(days=1)
+        tomorrow = today + timedelta(days=1)
         return tomorrow.strftime("%d %B")
     else:
         try:
             day, month = map(int, date_str.split('/'))
-            current_year = datetime.now(ADELAIDE_TZ).year
+            current_year = today.year
             date_obj = datetime(current_year, month, day, tzinfo=ADELAIDE_TZ)
+            if date_obj < today:
+                date_obj = date_obj.replace(year=current_year + 1)
             return date_obj.strftime("%d %B")
         except ValueError:
-            return datetime.now(ADELAIDE_TZ).strftime("%d %B")
+            return today.strftime("%d %B")
 
-def format_response(venue, date, time, is_urgent):
+def format_response(venue, date, shift, is_urgent):
+    time, ward, _ = shift
     formatted_date = format_date(date)
+    
+    response = f"I can {venue}"
+    if ward:
+        response += f" in {ward}"
+    
+    response += f"/{formatted_date}/"
+    
     if is_urgent and time.startswith("ASAP"):
-        return f"I can in 20 minutes {venue}/{formatted_date}/{time}"
+        response = f"I can in 20 mins {venue}"
+        if ward:
+            response += f" in {ward}"
+        response += f"/{formatted_date}/{time}"
     else:
         start_time, end_time = time.split('-')
         formatted_time = f"{start_time[:2]}{start_time[2:] or ''}-{end_time[:2]}{end_time[2:] or ''}"
-        return f"I can {venue}/{formatted_date}/{formatted_time}"
+        response += formatted_time
+    
+    return response
 
 def calculate_shift_duration(shift):
-    start, end = shift.split('-')
+    time, _, _ = shift
+    start, end = time.split('-')
     if start.upper() == "ASAP":
         return float('inf')  # Prioritize ASAP shifts
     start_minutes = int(start[:2]) * 60 + int(start[2:] or '0')
@@ -149,9 +179,6 @@ def calculate_shift_duration(shift):
     if duration < 0:
         duration += 24 * 60
     return duration
-
-def get_longest_shift(shifts):
-    return max(shifts, key=calculate_shift_duration)
 
 async def main():
     if not api_id or not api_hash:
@@ -196,17 +223,21 @@ async def main():
 
             if bot_active and any(keyword in message.upper() for keyword in inclusion_keywords):
                 try:
-                    date, venue, shifts, is_urgent = parse_shift_message(message)
+                    date, shifts, is_urgent = parse_shift_message(message)
                     
-                    if venue and shifts and venue not in exclusion_locations:
-                        longest_shift = get_longest_shift(shifts)
-                        response = format_response(venue, date, longest_shift, is_urgent)
-                        logger.info(f"Preparing to send response: {response}")
-                        await asyncio.sleep(RESPONSE_DELAY)
-                        await client.send_message(event.chat_id, response)
-                        logger.info(f"Response sent after {RESPONSE_DELAY} seconds delay.")
+                    if shifts:
+                        longest_shift = max(shifts, key=calculate_shift_duration)
+                        time, ward, venue = longest_shift
+                        if venue not in exclusion_locations:
+                            response = format_response(venue, date, longest_shift, is_urgent)
+                            logger.info(f"Preparing to send response: {response}")
+                            await asyncio.sleep(RESPONSE_DELAY)
+                            await client.send_message(event.chat_id, response)
+                            logger.info(f"Response sent after {RESPONSE_DELAY} seconds delay.")
+                        else:
+                            logger.info("Excluded location, not responding.")
                     else:
-                        logger.info("Invalid shift information or excluded location, not responding.")
+                        logger.info("No valid shifts found, not responding.")
                 except Exception as e:
                     logger.error(f"Error processing message: {e}")
             else:
@@ -215,7 +246,7 @@ async def main():
         await client.run_until_disconnected()
 
 if __name__ == "__main__":
-    if None in (fuzz, TelegramClient, load_dotenv):
+    if None in (fuzz, process, TelegramClient, load_dotenv):
         print("Error: Some required libraries are missing. Please install them and try again.")
     else:
         print("SSHJarvis is now running!")

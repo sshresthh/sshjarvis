@@ -168,7 +168,7 @@ pip3 install python-dotenv telethon fuzzywuzzy python-Levenshtein
 ### 1. Create a New `tmux` Session
 
 ```bash
-tmux new -s sshjarvis
+  -s sshjarvis
 ```
 
 ### 2. Run Your Bot
