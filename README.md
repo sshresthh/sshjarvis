@@ -100,7 +100,7 @@ The bot can be customized through several variables:
 
 3. Install the required packages:
    ```python
-   pip install python-dotenv telethon fuzzywuzzy
+   pip install python-dotenv telethon fuzzywuzzy python-dateutil
    ```
 
 ## Configuration
@@ -132,7 +132,7 @@ The bot can be customized through several variables:
    python3 sshjarvis.py
    ```
 
------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+---
 
 # Running SSHJarvis 24/7 on Google Cloud Platform
 
@@ -141,10 +141,12 @@ This guide explains how to run your SSHJarvis bot continuously on a Google Cloud
 ## Initial Setup
 
 ### 1. Set up your GCP VM Instance
+
 - Create a new VM instance in GCP if you haven't already.
 - Ensure Python 3.x is installed on your instance.
 
 ### 2. Install Required Packages
+
 SSH into your VM instance and run:
 
 ```bash
@@ -153,32 +155,38 @@ sudo apt install tmux python3-pip
 pip3 install python-dotenv telethon fuzzywuzzy python-Levenshtein
 ```
 
------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+---
 
 ## Running SSHJarvis Using `tmux`
 
 ### 1. Create a New `tmux` Session
+
 ```bash
 tmux new -s sshjarvis
 ```
 
 ### 2. Run Your Bot
+
 Inside the `tmux` session:
+
 ```bash
 python3 sshjarvis.py
 ```
 
 ### 3. Detach from the `tmux` Session
+
 Press `Ctrl + B`, then `D`. Your bot will continue running in the background.
 
 ### 4. Exit SSH (Optional)
+
 You can now safely exit your SSH session. The bot will keep running.
 
------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+---
 
 ## Managing Your Bot
 
 ### Checking Bot Status
+
 1. SSH into your VM instance
 2. List `tmux` sessions:
    ```bash
@@ -190,6 +198,7 @@ You can now safely exit your SSH session. The bot will keep running.
    ```
 
 ### Stopping the Bot
+
 1. Reattach to the `tmux` session
 2. Stop the Python script (Ctrl + C)
 3. Exit the `tmux` session:
@@ -198,12 +207,14 @@ You can now safely exit your SSH session. The bot will keep running.
    ```
 
 ### Killing the `tmux` Session
+
 If needed, you can forcefully terminate the session:
+
 ```bash
 tmux kill-session -t sshjarvis
 ```
 
------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+---
 
 ## Best Practices
 
@@ -212,12 +223,14 @@ tmux kill-session -t sshjarvis
 2. **Monitoring**: Set up monitoring alerts in GCP to notify you of high CPU usage or other issues.
 
 3. **Updates**: Regularly update your bot script and dependencies. When updating:
+
    - Reattach to the `tmux` session
    - Stop the current bot instance
    - Pull the latest code (if using version control)
    - Restart the bot
 
-4. **Security**: 
+4. **Security**:
+
    - Keep your `.env.rosana` file secure and never commit it to version control.
    - Regularly update your VM instance and all installed packages.
 
@@ -234,7 +247,7 @@ tmux kill-session -t sshjarvis
 
 Remember to monitor your GCP usage to stay within free tier limits or your budget if using paid services.
 
------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+---
 
 ## Conclusion
 

@@ -1,0 +1,23 @@
+{
+  "inclusion_keywords": [
+    "SHIFT AVAILABLE",
+    "MULTIPLE SHIFTS AVAILABLE",
+    "URGENT SHIFT AVAILABLE"
+  ],
+  "inclusion_locations": [
+    "Calvary Oakland",
+    "Calvary Brighton",
+    "Calvary Kingswood",
+    "Amber Age Care"
+  ],
+  "exclusion_locations": ["SNOWTOWN"],
+  "relevant_roles": ["PCW", "PCA"],
+  "facility_wards": {
+    "Calvary Oakland": ["Glen", "Oak"],
+    "Amber Age Care": ["Paradise"]
+  },
+  "chat_names": ["WorkforceXS Carers (PCA, PCW,CWK) chat", "test", "state"],
+  "fuzzy_match_threshold": 70,
+  "asap_response_time": 35,
+  "max_messages_per_minute": 10
+}
