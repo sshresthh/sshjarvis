@@ -190,7 +190,7 @@ async def main():
         logger.error("API credentials not found. Please check your .env.local file.")
         return
 
-    client = TelegramClient('sshjarvis_session', api_id, api_hash)
+    client = TelegramClient('rosana_session', api_id, api_hash)
 
     async with client:
         await get_chat_ids(client)
