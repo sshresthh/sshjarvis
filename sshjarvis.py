@@ -90,13 +90,19 @@ def parse_shift_message(message):
             continue
         
         if not date:
+            if "TODAY" in line.upper():
+                date = "TODAY"
+                continue
+            elif "TOMORROW" in line.upper():
+                date = "TOMORROW"
+                continue
             try:
                 parsed_date = date_parser.parse(line, fuzzy=True)
                 if parsed_date:
                     date = parsed_date.strftime("%d/%m")
                     continue
             except ValueError:
-                logger.warning(f"Could not parse date from line: {line}")
+                logger.debug(f"Could not parse date from line: {line}")
         
         possible_venue = fuzzy_match(line, inclusion_locations)
         if possible_venue:
@@ -109,7 +115,7 @@ def parse_shift_message(message):
                 current_ward = None
             continue
         
-        shift_match = re.match(r'(?:(\w+)\s+)?(\d{4})-(\d{4})(?:\s+IN\s+(.+?))?(?:\s*x\s*(\d+))?$', line)
+        shift_match = re.match(r'(?:(\w+)\s+)?(\d{4})-(\d{4})(?:\s+IN\s+(.+?))?(?:\s*x\s*(\d+))?$', line, re.IGNORECASE)
         if shift_match:
             role, start_time, end_time, ward, multiplier = shift_match.groups()
             if not role or role.upper() in (r.upper() for r in relevant_roles):
@@ -117,31 +123,37 @@ def parse_shift_message(message):
                 ward = ward.strip().title() if ward else current_ward
                 multiplier = int(multiplier) if multiplier else 1
                 shifts.extend([(shift_time, ward, current_venue)] * multiplier)
-        elif "ASAP" in line.upper():
-            asap_match = re.search(r'ASAP-(\d{4})(?:\s+IN\s+(.+))?$', line.upper())
+        else:
+            asap_match = re.match(r'(?:(\w+)\s+)?(ASAP|asap)-(\d{4})(?:\s+IN\s+(.+))?$', line)
             if asap_match:
-                end_time, ward = asap_match.groups()
-                shift_time = f"ASAP-{end_time}"
-                ward = ward.strip().title() if ward else current_ward
-                shifts.append((shift_time, ward, current_venue))
-            else:
-                shifts.append(("ASAP-2359", current_ward, current_venue))  # Default end time if not specified
-            is_urgent = True
+                role, _, end_time, ward = asap_match.groups()
+                if not role or role.upper() in (r.upper() for r in relevant_roles):
+                    shift_time = f"ASAP-{end_time}"
+                    ward = ward.strip().title() if ward else current_ward
+                    shifts.append((shift_time, ward, current_venue))
+                    is_urgent = True
+    
+    # If no date was found, default to today
+    if not date:
+        date = "TODAY"
     
     logger.info(f"Parsed message - Date: {date}, Shifts: {shifts}, Urgent: {is_urgent}")
     return date, shifts, is_urgent
 
 def format_date(date_str):
     today = datetime.now(ADELAIDE_TZ)
-    if not date_str:
+    if not date_str or date_str.upper() == "TODAY":
         return today.strftime("%d/%m")
+    if date_str.upper() == "TOMORROW":
+        tomorrow = today + timedelta(days=1)
+        return tomorrow.strftime("%d/%m")
     try:
         date_obj = date_parser.parse(date_str, fuzzy=True)
         if date_obj < today:
             date_obj = date_obj.replace(year=today.year + 1)
         return date_obj.strftime("%d/%m")
     except ValueError:
-        logger.warning(f"Could not parse date: {date_str}")
+        logger.warning(f"Could not parse date: {date_str}, defaulting to today")
         return today.strftime("%d/%m")
 
 def format_response(venue, date, shift, is_urgent):
@@ -204,22 +216,22 @@ async def main():
 
                 if chat_name == "state":
                     command_parts = message.strip().lower().split()
-                    if command_parts[0] == "namaste":
+                    if command_parts[0] == "goodday":
                         if len(command_parts) == 2 and command_parts[1].isdigit():
                             delay = int(command_parts[1])
                             if 0 <= delay <= 4:
                                 RESPONSE_DELAY = delay
                                 bot_active = True
                                 logger.info(f"Bot activated with delay {RESPONSE_DELAY}")
-                                await client.send_message(event.chat_id, f'\n--------------------\nTURNED ON.\nShift Pick Gardinchu Hai!\nDelay set to {RESPONSE_DELAY} seconds.\n--------------------')
+                                await client.send_message(event.chat_id, f'\n--------------------\nTURNED ON.\nGoodday Mate\nDelay set to {RESPONSE_DELAY} seconds.\n--------------------')
                             else:
                                 await client.send_message(event.chat_id, "Invalid delay. Please use a number between 0 and 4.")
                         else:
-                            await client.send_message(event.chat_id, "Please specify a delay between 0 and 4 seconds. Example: 'namaste 2'")
-                    elif message.strip().lower() == "bye":
+                            await client.send_message(event.chat_id, "Please specify a delay between 0 and 4 seconds. Example: 'goodday 2'")
+                    elif message.strip().lower() == "goodnight":
                         bot_active = False
                         logger.info("Bot deactivated.")
-                        await client.send_message(event.chat_id, '\n--------------------\nTURNED OFF!\nMa Sutna Gaye!\n--------------------')
+                        await client.send_message(event.chat_id, '\n--------------------\nTURNED OFF!\nGoodnight Mate\n--------------------')
                     print("\n-------------------------\n")
                     return
 
